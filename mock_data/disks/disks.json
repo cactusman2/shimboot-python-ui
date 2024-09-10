@@ -1,0 +1,5 @@
+{
+  "/dev/sda": "cgpt_sda.txt",
+  "/dev/mmcblk1": "cgpt_mmcblk1.txt",
+  "/dev/sdb": "cgpt_sdb.txt"
+}

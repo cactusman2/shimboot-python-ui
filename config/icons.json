@@ -1,0 +1,63 @@
+
+{
+  "comment": "icon sizes/modes are just a precedent if were going to have bigger icons eventually (never), while its kind of pointless now it sorts everything and gives everything more info",
+  "chromeos": {
+    "min": [
+        " [r]####### ",
+        "[g]*[d]\\[r]#######",
+        "[g]**[d]\\-●----",
+        "[g]****[d]|[y];;;;",
+        " [g]***[d]|[y];;; "
+      ]
+  },
+  "debian": {
+    "comment": "width = 9, common logo width",
+    "min": [
+      "[r]  _____",
+      "[r] /  __ \\ ",
+      "[r]|  /    |",
+      "[r]|  \\___-", 
+      "[r] ‾——__"
+    ]
+  },
+  
+  "alpine": {
+    "min": [
+      "   [b]/\\ /\\     ",
+      "  [b]/[w]/[b] \\  \\    ",
+      " [b]/[w]/[b]   \\  \\   ",
+      "[b]/[w]//[b]    \\  \\  ",
+      "[w]//[b]      \\  \\ "
+    ]
+  },
+
+  "settings": {
+    "min": [
+      "[d] #  #  # ",
+      "[d]  \\-|-/  ",
+      "[d]#-|   |-#",
+      "[d]  /-|-\\  ",
+      "[d] #  #  # "
+    ]
+  },
+
+  "rescue": {
+    "min": [
+      "[d] ###|### ",
+      "[d]###   ###",
+      "[d]--     --",
+      "[d]###   ###",
+      "[d] ###|### "
+    ]
+  },
+  
+  "shell": {
+    "min": [
+      "[d]┌───────┐",
+      "[d]│    ***│",
+      "[d]├───────┤",
+      "[d]│  >_   │",
+      "[d]└───────┘"
+    ]
+  }
+}
