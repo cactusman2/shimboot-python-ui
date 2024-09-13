@@ -23,6 +23,14 @@ def erase(window, y, x, h, w):
     for xOff in range(w):
       window.addstr(y+yOff, x+xOff, " ")
 
+def swap(y, x, window, h, w):
+  # swaps CHGAT attributes
+  for xOff in range(w):
+    for yOff in range(h):
+      attrs = window.inch(y+yOff, x+xOff)
+      isreverse = bool(attrs & curses.A_REVERSE)
+      window.chgat(y+yOff, x+xOff, curses.A_NORMAL if isreverse else curses.A_REVERSE)
+
 def safe_write(y, x, window, text, wrap = False, width = None):
   # whenever you write outside the screen, the curses throws an error, this prevents the error from happening
   # auto wraps and truncates aswell, which is pretty handy :)

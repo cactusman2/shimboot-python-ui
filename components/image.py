@@ -59,7 +59,6 @@ unpacked_icons = {}
 def get_sys_icon(operating_system, icon_name):
   global read_icons_json
   global unpacked_icons
-  utils.doprint(operating_system)
   if read_icons_json == None:
     icons_path = utils.config_path / "icons.json"
     icons_text = (icons_path).read_text()

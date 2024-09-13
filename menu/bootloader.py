@@ -12,82 +12,34 @@ import utils
 import settings
 import menu.options
 
-# these are shared among all components, are able to have seperate render functions
-class expanded_option():
-  icon = ("unknown", "unknown")
-  option_name = "unknown"
-  quick_key = 0
-
-  def get_w(self, selected):
-    if selected:
-      return 11+len(self.option_name)+1
-    else:
-      return 11
-  
-  def render(self, y, x, h, w, selected, partition_component=None):
-    icon_info = components.image.get_sys_icon(*self.icon)
-    if selected:
-      partition_component.plot(utils.safe_write, y+2, x+1, partition_component.scroll_owner.draw_target, self.option_name)
-    for i in range(h):
-      partition_component.plot(partition_component.scroll_owner.draw_target.chgat, y+i, x, w, curses.A_REVERSE if selected else curses.A_NORMAL)
-    components.image.draw_image(partition_component.scroll_owner.draw_target, y, x+w-1-icon_info[0], icon_info, partition_component.can_plot_y, selected)
-
-  def run(self, partition_component):
-    # this runs the component
-    pass
-
-class edit_option(expanded_option):
-  icon = ("settings", "min")
-  option_name = "config"
-  quick_key = 101
-  def run(self, partition_component):
-    pass
-
-class rescue_option(expanded_option):
-  option_name = "rescue"
-  icon = ("rescue", "min")
-  quick_key = 114
-  def run(self, partition_component):
-    pass
-
-options = [edit_option, rescue_option]
+options = ["edit", "rescue"]
 
 class partition_component(scroll_component):
   h=5
   expandable = True
-  def __init__(self, partName="", partType=""):
-    super().__init__()
+  def __init__(self, partName="", partType="", layout=""):
+    super().__init__(None, layout)
     self.partType = partType
     self.partName = partName
     self.expanded = False
-    self.cursor_position = 0
+    self.cursor_position = -1
 
   def unselect(self):
-    self.expanded = False
+    self.cursor_position = -1
 
   def select(self):
-    self.cursor_position = 0
-    self.expanded = False  
+    self.cursor_position = -1
 
   def recieve_key(self, key):
     if self.expandable:
       if key == curses.KEY_RIGHT:
-        if self.expanded:
-          if self.cursor_position-1 >= 0:
-            self.cursor_position -= 1
-            self.refresh()
-        else:
-          self.cursor_position = 0
-          self.expanded = True
+        if self.cursor_position-1 >= -1:
+          self.cursor_position -= 1
           self.refresh()
       elif key == curses.KEY_LEFT:
-        if self.expanded:
-          if self.cursor_position+1 < len(options):
-            self.cursor_position += 1
-            self.refresh()
-          else:
-            self.expanded = False
-            self.refresh()
+        if self.cursor_position+1 < len(options):
+          self.cursor_position += 1
+          self.refresh()
 
   def get_text(self):
     return self.partName
@@ -97,30 +49,32 @@ class partition_component(scroll_component):
 
   def render(self, y, x, h, w, selected):
     self.plot(utils.safe_write, y+2, x, self.scroll_owner.draw_target, self.get_text())
-    if self.expandable and not self.expanded:   
+    expanded = self.cursor_position >= 0
+    if selected and not expanded and self.expandable:
       for i in range(int((self.h/2)+1)):
-        self.plot(utils.safe_write, y+int(self.h/4)+i, x+w-1, self.scroll_owner.draw_target, ">")
+        self.plot(utils.safe_write, y+int(self.h/4)+i, x+w-1, self.scroll_owner.draw_target, "<")
     for i in range(self.h):
-      self.plot(self.scroll_owner.draw_target.chgat, y+i, x, w, curses.A_REVERSE if not self.expanded and selected else curses.A_NORMAL)
-    if not self.expanded: # i hate this
+      self.plot(self.scroll_owner.draw_target.chgat, y+i, x, w, curses.A_REVERSE if selected else curses.A_NORMAL)
+    if not expanded: # i hate this
       icon_info = self.get_icon_info()
       components.image.draw_image(self.scroll_owner.draw_target, y, w-icon_info[0]-1, icon_info, self.can_plot_y, selected)
-    # draw the expanded options on top
-    if self.expanded:
-      x_cursor = w
-      for i, option in enumerate(options):
-        is_selected = i == self.cursor_position
-        width = option.get_w(option, selected=is_selected)
-        x_cursor -= width
-        # Extend to show the option text
-        option.render(option, y, x_cursor, 5, width, is_selected, partition_component=self)
-      for i in range(int((self.h/2)+1)):
-        self.plot(utils.safe_write, y+int(self.h/4)+i, x_cursor-1, self.scroll_owner.draw_target, "<")
+    if expanded:
+      utils.doprint(self.cursor_position)
+      to_display = options[self.cursor_position]
+      if self.cursor_position+1 < len(options):
+        to_display = "< "+to_display
+      if self.cursor_position-1 >= -1:
+        to_display = to_display+" >"
+      width = len(to_display)
+      x_corner = x+w-width
+      self.plot(utils.safe_write, y, x_corner, self.scroll_owner.draw_target, to_display)
 
 class shell_option(partition_component):
   expandable = False
+  layout = "Z"
   def __init__(self):
-    super().__init__()
+    super().__init__(None, None)
+    self.layout = "Z"
 
   def get_text(self):
     return "enter shell"
@@ -141,10 +95,17 @@ class Bootloader:
     self.entries_scroller.clear()    
     
     for entry in entries_from_partitions:
-      utils.doprint(str(entry))
-      new_component = partition_component(entry["device"]+" on "+entry["name"], entry["distro"])
-      self.entries_scroller.add(new_component)
-    self.entries_scroller.add(shell_option())
+      layout = None
+      if entry["schema_name"] == "chrome_os":
+        # if were chromeos, treat similar chromeos layouts with alphabhetical ordering by the label
+        layout = "1"+entry["label"]
+      else:
+        # this is a shimboot, instead order them by order of when they were plugged in
+        layout = "2"+entry["device"]
+      new_component = partition_component(entry["device"]+" on "+entry["name"], entry["distro"], layout)
+      self.entries_scroller.add(new_component, bulk=True)
+    self.entries_scroller.add(shell_option(), bulk=True) # shell: i here
+    self.entries_scroller.full_sort()
     self.entries_scroller.refresh()
 
   def pick_os(self):
@@ -265,8 +226,6 @@ class Bootloader:
     curses.init_pair(13, curses.COLOR_CYAN, curses.COLOR_WHITE)
     curses.init_pair(14, curses.COLOR_MAGENTA, curses.COLOR_WHITE)
     curses.init_pair(15, curses.COLOR_BLACK, curses.COLOR_WHITE)
-    #if curses.can_change_color(): # use pure white if we can, for some reason curses color white is grey (this only applies to certain terminals, enable this for perfect mock support)
-    #  curses.init_color(curses.COLOR_WHITE, 1000, 1000, 1000)
     
     self.rows, self.cols = self.screen.getmaxyx()
     self.screen.nodelay(1)
@@ -285,16 +244,3 @@ class Bootloader:
     cols = self.screen.getmaxyx()[1]
     x = int(cols/2 - len(text)/2)
     window.addstr(y, x, text)
-  
-  # each entry is 5 pixels big (so we can center the text! and the icon)
-  def show_disks(self, selected_item):
-    pass
-    #entrySize = 5
-    #width = self.entries_window.getmaxyx()[1]
-    #for i, partition in enumerate(self.all_partitions):
-    #  positionY = i*entrySize
-    #  partition_text = f"{partition['name']} on {partition['device']}"
-    #  utils.safe_write(self.entries_window, positionY+int(entrySize/2), 2, partition_text, False, int((width-2)/2))
-    #  utils.chgat_multiline(self.entries_window, positionY+1, 1, width-2, entrySize, curses.A_REVERSE if i == selected_item else curses.A_NORMAL)
-    #  i += 1
-    #self.entries_window.refresh()

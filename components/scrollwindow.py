@@ -6,7 +6,9 @@ class scroll_component:
   h = 1
   scroll_owner = None
   selected = False
-  def __init__(self, text=""):
+  layout = 0
+  def __init__(self, text="", layout=""):
+    self.layout = layout
     self.text = text
 
   def can_plot_y(self, y):
@@ -32,9 +34,35 @@ class scroll_component:
     self.plot(utils.safe_write, y, x, self.scroll_owner.draw_target, self.text, False, int(w/2))
     self.plot(self.scroll_owner.draw_target.chgat, y, x, w, curses.A_REVERSE if selected else curses.A_NORMAL)
 
+prefs = {}
+
+it = 0
+for i in range(97, 123):
+  it += 1
+  prefs[chr(i)] = it
+
+for i in range(65, 90):
+  it += 1
+  prefs[chr(i)] = it
+
+for i in range(48, 57):
+  it += 1
+  prefs[chr(i)] = it
+
+# x is the one in place, y is the contender
+# returns whether or not they should continue
+def string_sorting_comparison(x, y):
+  for char_iter in range(min(len(x), len(y))):
+    comp1 = x[char_iter]
+    comp2 = y[char_iter]
+    if comp1 != comp2:
+      return prefs.get(comp2, ord(comp2)) > prefs.get(comp1, ord(comp1))
+  return True
+
 # i figured out u can't make a subpad of a subpad! ):
 class scroll_window:
   selected = None # scroll component
+  sorting_comparison = string_sorting_comparison
   def __init__(self, curse_window):
     self.entries = []
     self.draw_target = curse_window
@@ -47,44 +75,69 @@ class scroll_window:
       h += i.h
     return h
 
-  # x is the one in place, y is the contender
-  # returns whether or not they should continue
-  def sorting_comparison(x, y):
-    return y.layout > x.layout
-
-  def iterative_next_index(contender): # probably i frogor
+  def iterative_next_index(self, contender): # probably i frogor
     # returns where a value should be inserted at in order to keep the list sorted
     for i, target in enumerate(self.entries):
       if not self.sorting_comparison(target, contender):
         return i-1
-    return len(entries)-1
+    return len(self.entries)-1
 
-  def full_sort():
-    # repeat this the length of what we have to sort -1 len every time
-    for cutoff in range(len(self.entries)):
+  def sorting_comparison(self, x, y):
+    return string_sorting_comparison(x.layout, y.layout)
+
+  def full_sort(self):
+    for cutoff in range(len(self.entries)-1):
+      smallest_val = None
       for i in range(cutoff, len(self.entries)):
-        next_index = self.iterative_next_index(i)
-        self.entries.remove(i)
-        self.entries.insert(i, next_index)
+        v = self.entries[i]
+        if smallest_val != v and smallest_val == None or not self.sorting_comparison(smallest_val, v):
+          smallest_val = v
+          # we then need to check that all values are corresponding to the smallest val by looping again
+          hit = False            
+          for i in range(cutoff, len(self.entries)):
+            c = self.entries[i]
+            if not self.sorting_comparison(smallest_val, c):
+              hit = True
+              smallest_val = c
+              break
+          if not hit: # all are in agreeance this is the current smallest value
+            break
+      self.entries.remove(smallest_val)
+      self.entries.insert(cutoff, smallest_val)
 
   def clear(self):
     self.selected = None
     self.entries.clear()
 
-  def add(self, v):
-    self.entries.append(v)
+  def add(self, v, bulk=False): # auto_sort will put the element in place automatically
+    if bulk:
+      # keep the entry for later sorting
+      # if u dont sort after using bulk the sort will be messed up ):
+      # this is only beneficial if your adding new_len^2(ish?) items otherwise an iteration for every item added might aswell be justified in terms of micro optimization
+      self.entries.append(v)
+    else:
+      # all adds are assumed to be iterative, please use bulk for optimization (like 1/100000th lol)
+      # this only works if the list is already sorted.
+      ind = self.iterative_next_index(v)
+      self.entries.insert(ind, v)
     v.scroll_owner = self
     if self.selected == None:
       self.selected = v
 
   def next(self):
-    ind = self.entries.index(self.selected)
-    if ind != -1 and ind+1 < len(self.entries):
+    try:
+      ind = self.entries.index(self.selected)
+    except:
+      ind = 0
+    if ind+1 < len(self.entries):
       self.select(self.entries[ind+1])
 
   def back(self):
-    ind = self.entries.index(self.selected)
-    if ind != -1 and ind-1 >= 0:
+    try:
+      ind = self.entries.index(self.selected)
+    except:
+      ind = 0
+    if ind-1 >= 0:
       self.select(self.entries[ind-1])
 
   def get_entry_y(self, find_entry):
