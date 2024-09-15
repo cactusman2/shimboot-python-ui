@@ -66,7 +66,7 @@ class partition_component(scroll_component):
       if self.cursor_position-1 >= -1:
         to_display = to_display+" >"
       width = len(to_display)
-      x_corner = x+w-width
+      x_corner = x+int(w/2)-int(width/2)
       self.plot(utils.safe_write, y, x_corner, self.scroll_owner.draw_target, to_display)
 
 class shell_option(partition_component):
